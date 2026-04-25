@@ -548,6 +548,162 @@ Below are Colab notebooks, organized by model. You can also view all [notebooks 
 
 </details>
 
+# 🔴 AMD Dev Cloud Notebooks
+<details>
+  <summary>
+    Click for all our AMD Dev Cloud notebooks categorized by model:
+  </summary>
+
+> These notebooks run on [AMD Dev Cloud](https://www.amd.com/en/developer/resources/ml-developers/amd-developer-cloud.html) using ROCm. PyTorch is pre-installed as a ROCm build — torch and triton are not reinstalled. Uses `unsloth[amd]`.
+
+### Gemma 4 Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Gemma4** **(E2B)** | Sudoku (GRPO RL) | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)_Reinforcement_Learning_Sudoku_Game.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E2B)** | Auto Kernel Creation (GRPO RL) | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)_GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E2B)** | 2048 Game (GRPO RL) | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)_Reinforcement_Learning_2048_Game.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E4B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E4B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E4B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E4B)-Text.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E4B)** | Audio | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E4B)-Audio.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E2B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E2B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)-Text.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(E2B)** | Audio | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(E2B)-Audio.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(26B A4B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(26B_A4B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(26B A4B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(26B_A4B)-Text.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(31B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(31B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma4** **(31B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma4_(31B)-Text.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### GRPO & Reinforcement Learning Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Llama3.1** **(8B)** | GSM8K Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.1_(8B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(4B)** | DAPO Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(4B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(8B)** | DAPO Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_8B_FP8_GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3 VL** **(8B)** | Vision Math | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_VL_(8B)-Vision-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2.5 VL** **(7B)** | Vision Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2_5_7B_VL_GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **gpt oss** **(20B)** | Auto Kernel Creation | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt_oss_(20B)_GRPO_BF16.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **gpt oss** **(20B)** | Minesweeper Game | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt_oss_(20B)_Reinforcement_Learning_GRPO_Minesweeper_Game_BF16.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Ministral3** **(3B)** | Sudoku | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Ministral_3_(3B)_Reinforcement_Learning_Sudoku_Game.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3** **(1B)** | GSM8K Math | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(1B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Phi 4** **(14B)** | GSM8K Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Phi_4_(14B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Mistral v0.3** **(7B)** | GSM8K Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_v0.3_(7B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3** **(8B)** | ORPO | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3_(8B)-ORPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Zephyr** **(7B)** | DPO | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Zephyr_(7B)-DPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **DeepSeek R1 0528 Qwen3** **(8B)** | DAPO Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-DeepSeek_R1_0528_Qwen3_(8B)_GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2.5** **(3B)** | GSM8K Math + vLLM | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2.5_(3B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Text-to-Speech (TTS) Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Orpheus** **(3B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Orpheus_(3B)-TTS.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llasa TTS** **(3B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llasa_TTS_(3B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llasa TTS** **(1B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llasa_TTS_(1B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Sesame CSM** **(1B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Sesame_CSM_(1B)-TTS.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Spark TTS** **(0.5B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Spark_TTS_(0_5B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Oute TTS** **(1B)** | TTS | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Oute_TTS_(1B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Vision (Multimodal) Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Llama3.2** **(11B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.2_(11B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2.5 VL** **(7B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2.5_VL_(7B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3 VL** **(8B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_VL_(8B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3** **(4B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(4B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3N** **(4B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3N_(4B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Pixtral** **(12B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Pixtral_(12B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2 VL** **(7B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2_VL_(7B)-Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3** **(4B)** | Vision Math (GRPO RL) | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(4B)-Vision-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Ministral3 VL** **(3B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Ministral_3_VL_(3B)_Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Paddle OCR** **(1B)** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Paddle_OCR_(1B)_Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **ERNIE 4.5 VL 28B A3B** | Vision | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-ERNIE_4_5_VL_28B_A3B_PT_Vision.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Embedding Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **ModernBert** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-ModernBert.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3 Embedding** **(4B)** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_Embedding_(4B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3 Embedding** **(0.6B)** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_Embedding_(0_6B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **EmbeddingGemma** **(300M)** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-EmbeddingGemma_(300M).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **BGE M3** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-BGE_M3.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **All MiniLM L6 v2** | | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-All_MiniLM_L6_v2.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Speech-to-Text (STT) Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Whisper** | STT | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Whisper.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### GPT-OSS Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **gpt-oss** **(20B)** | Fine-tuning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt-oss-(20B)-Fine-tuning.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **gpt-oss** **(20B)** | GRPO | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt-oss-(20B)-GRPO.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **gpt-oss** **(120B A100)** | Fine-tuning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt-oss-(120B)_A100-Fine-tuning.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **gpt-oss** **(500K Context)** | Fine-tuning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-gpt_oss_(20B)_500K_Context_Fine_tuning.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Gemma Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Gemma3** **(4B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(4B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3** **(270M)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(270M).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3** **(27B A100)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3_(27B)_A100-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3N** **(4B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3N_(4B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3N** **(4B)** | Audio | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3N_(4B)-Audio.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma3N** **(2B)** | Inference | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma3N_(2B)-Inference.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma2** **(2B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma2_(2B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Gemma2** **(9B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Gemma2_(9B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **CodeGemma** **(7B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-CodeGemma_(7B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Llama Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Llama3.1** **(8B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.1_(8B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3.1** **(8B)** | Inference | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.1_(8B)-Inference.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3.2** **(1B + 3B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.2_(1B_and_3B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3.2** **(1B)** | RAFT | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.2_(1B)-RAFT.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3.3** **(70B A100)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3.3_(70B)_A100-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3** **(8B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3_(8B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3** **(8B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3_(8B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Llama3** **(8B)** | Ollama | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Llama3_(8B)-Ollama.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Qwen Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Qwen3** **(14B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(14B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(14B)** | Reasoning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(14B)-Reasoning-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(4B)** | Instruct | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(4B)-Instruct.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(4B)** | Thinking | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(4B)-Thinking.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen3** **(32B A100)** | Reasoning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen3_(32B)_A100-Reasoning-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2.5** **(7B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2.5_(7B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2** **(7B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2_(7B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Qwen2.5 Coder** **(14B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Qwen2.5_Coder_(14B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Mistral Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Mistral v0.3** **(7B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_v0.3_(7B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Mistral v0.3** **(7B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_v0.3_(7B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Mistral v0.3** **(7B)** | CPT | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_v0.3_(7B)-CPT.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Mistral Nemo** **(12B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_Nemo_(12B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Mistral Small** **(22B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Mistral_Small_(22B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Phi Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **Phi 4** **(14B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Phi_4-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Phi 3.5 Mini** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Phi_3.5_Mini-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Phi 3 Medium** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Phi_3_Medium-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+### Other Notebooks
+| Model | Type | Notebook Link |
+| --- | --- | --- |
+| **TinyLlama** **(1.1B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-TinyLlama_(1.1B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Magistral** **(24B)** | Reasoning | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Magistral_(24B)-Reasoning-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Falcon H1** **(0.5B)** | Alpaca | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Falcon_H1_(0.5B)-Alpaca.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Liquid LFM2** **(1.2B)** | Conversational | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Liquid_LFM2_(1.2B)-Conversational.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **Deepseek OCR** **(3B)** | OCR | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-Deepseek_OCR_(3B).ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+| **bert classification** | Classification | <a href="https://github.com/LeoBorcherding/notebooks/blob/main/nb/AMD-bert_classification.ipynb" target="_blank" rel="noopener noreferrer">📓 Open Notebook</a> |
+
+</details>
 
 <!-- End of Notebook Links -->
 
