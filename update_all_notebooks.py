@@ -82,6 +82,11 @@ You will learn how to do [data prep](#Data), how to [train](#Train), how to [run
 general_announcement_content_a100 = general_announcement_content.replace("on a **free** Tesla T4 Google Colab instance!", "on your A100 Google Colab Pro instance!")
 general_announcement_content_l4 = general_announcement_content.replace("on a **free** Tesla T4 Google Colab instance!", "on your L4 Google Colab Pro instance!")
 general_announcement_content_fp8 = general_announcement_content_l4  # backwards compat alias
+general_announcement_content_amd = general_announcement_content.replace(
+    "on a **free** Tesla T4 Google Colab instance!", "on **AMD Dev Cloud**!"
+).replace(
+    'press "*Runtime*" and press "*Run all*"', 'press "*Run*" and press "*Run All*"'
+)
 
 general_announcement_content_hf_course = general_announcement_content.split(announcement_separation)
 general_announcement_content_hf_course = general_announcement_content_hf_course[0] + announcement_separation + '<a href="https://huggingface.co/learn/nlp-course/en/chapter12/6?fw=pt"><img src="https://github.com/unslothai/notebooks/raw/main/assets/hf%20course.png" width="165"></a>' + general_announcement_content_hf_course[1]
@@ -262,6 +267,121 @@ installation_grpo_kaggle_content = update_or_append_pip_install(
     "trl",
     UV_PIN_TRL,
 )
+
+# ---------------------------------------------------------------------------
+# AMD Dev Cloud install templates
+# ROCm/AMD: torch is pre-installed as a ROCm build — skip torch/triton install.
+# All three templates (base, GRPO, Gemma4) are AMD-only; no COLAB_ branch.
+# ---------------------------------------------------------------------------
+
+installation_amd_content = """\
+%%capture
+import os, importlib.util, subprocess, sys
+
+def _pip(*packages):
+    try:
+        if subprocess.run(["uv", "--version"], capture_output=True).returncode == 0:
+            cmd = ["uv", "pip", "install", "--system", "-qqq"]
+        else:
+            raise FileNotFoundError
+    except FileNotFoundError:
+        cmd = [sys.executable, "-m", "pip", "install", "-qqq"]
+    subprocess.run(cmd + list(packages), check=False)
+
+import socket
+try:
+    socket.getaddrinfo("huggingface.co", 443, socket.AF_INET)
+except socket.gaierror:
+    with open("/etc/resolv.conf", "a") as _f:
+        _f.write("nameserver 8.8.8.8\\nnameserver 8.8.4.4\\n")
+# ROCm/AMD: torch already installed as ROCm build — skip torch/triton, use [amd] extra
+try: import numpy; _np = f"numpy=={numpy.__version__}"
+except: _np = "numpy"
+try: import PIL; _pil = f"pillow=={PIL.__version__}"
+except: _pil = "pillow"
+_pip(_np, _pil, "bitsandbytes", "cut-cross-entropy", "torchao")
+_pip("--no-deps",
+    "unsloth_zoo[base] @ git+https://github.com/unslothai/unsloth-zoo",
+    "unsloth[amd] @ git+https://github.com/unslothai/unsloth",
+)
+_pip("--upgrade", "--no-deps",
+    "transformers>=5.0.0", "tokenizers", "huggingface_hub>=1.5.0",
+    "trl>=0.24.0", "unsloth", "unsloth_zoo",
+)
+"""
+
+installation_amd_grpo_content = """\
+%%capture
+import os, importlib.util, subprocess, sys
+
+def _pip(*packages):
+    try:
+        if subprocess.run(["uv", "--version"], capture_output=True).returncode == 0:
+            cmd = ["uv", "pip", "install", "--system", "-qqq"]
+        else:
+            raise FileNotFoundError
+    except FileNotFoundError:
+        cmd = [sys.executable, "-m", "pip", "install", "-qqq"]
+    subprocess.run(cmd + list(packages), check=False)
+
+os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
+
+import socket
+try:
+    socket.getaddrinfo("huggingface.co", 443, socket.AF_INET)
+except socket.gaierror:
+    with open("/etc/resolv.conf", "a") as _f:
+        _f.write("nameserver 8.8.8.8\\nnameserver 8.8.4.4\\n")
+# ROCm/AMD: torch already installed as ROCm build — skip torch/triton, use [amd] extra
+try: import numpy; _np = f"numpy=={numpy.__version__}"
+except: _np = "numpy"
+_pip(_np, "bitsandbytes", "cut-cross-entropy", "torchao")
+_pip("--no-deps",
+    "unsloth_zoo[base] @ git+https://github.com/unslothai/unsloth-zoo",
+    "unsloth[amd] @ git+https://github.com/unslothai/unsloth",
+)
+_pip("--upgrade", "--no-deps",
+    "transformers>=5.0.0", "tokenizers", "huggingface_hub>=1.5.0",
+    "trl>=0.24.0", "unsloth", "unsloth_zoo",
+)
+"""
+
+installation_amd_gemma4_content = """\
+%%capture
+import os, importlib.util, subprocess, sys
+
+def _pip(*packages):
+    try:
+        if subprocess.run(["uv", "--version"], capture_output=True).returncode == 0:
+            cmd = ["uv", "pip", "install", "--system", "-qqq"]
+        else:
+            raise FileNotFoundError
+    except FileNotFoundError:
+        cmd = [sys.executable, "-m", "pip", "install", "-qqq"]
+    subprocess.run(cmd + list(packages), check=False)
+
+import socket
+try:
+    socket.getaddrinfo("huggingface.co", 443, socket.AF_INET)
+except socket.gaierror:
+    with open("/etc/resolv.conf", "a") as _f:
+        _f.write("nameserver 8.8.8.8\\nnameserver 8.8.4.4\\n")
+# ROCm/AMD: torch already installed as ROCm build — skip torch/triton, use [amd] extra
+try: import numpy; _np = f"numpy=={numpy.__version__}"
+except: _np = "numpy"
+try: import PIL; _pil = f"pillow=={PIL.__version__}"
+except: _pil = "pillow"
+_pip(_np, _pil, "bitsandbytes", "cut-cross-entropy", "torchao")
+_pip("--no-deps",
+    "unsloth_zoo[base] @ git+https://github.com/unslothai/unsloth-zoo",
+    "unsloth[amd] @ git+https://github.com/unslothai/unsloth",
+)
+# Gemma 4 requires transformers >= 5.5.0
+_pip("--upgrade", "--no-deps",
+    "transformers>=5.5.0", "tokenizers", "huggingface_hub>=1.5.0",
+    "trl>=0.28.0", "unsloth", "unsloth_zoo",
+)
+"""
 
 installation_synthetic_data_content = """%%capture
 import os
@@ -2908,7 +3028,9 @@ def update_notebook_sections(
 
         # Select announcement based on notebook type and GPU
         gpu_type = notebook_content.get("metadata", {}).get("colab", {}).get("gpuType", "T4")
-        if f"{hf_course_name}-" in notebook_path:
+        if is_path_contains_any(notebook_path, ["AMD-"]):
+            general_announcement = general_announcement_content_amd
+        elif f"{hf_course_name}-" in notebook_path:
             full_model_name = os.path.basename(notebook_path).replace(".ipynb", "")
             full_model_name = full_model_name.split("-")
             full_model_name = " ".join(full_model_name[1:]).replace("_", " ")
@@ -2999,6 +3121,9 @@ def update_notebook_sections(
                             if is_path_contains_any(notebook_path.lower(), ["kaggle"]):
                                 installation = installation_grpo_kaggle_content
                                 # Kaggle will delete the second cell instead -> Need to check
+                                del notebook_content["cells"][i + 2]
+                            elif is_path_contains_any(notebook_path, ["AMD-"]):
+                                # AMD: single self-contained install cell, no extra GRPO cell needed
                                 del notebook_content["cells"][i + 2]
                             else:
                                 installation = installation_grpo_content
@@ -3167,6 +3292,16 @@ def update_notebook_sections(
                             else:
                                 installation = installation_phone_content
 
+                        # AMD INSTALLATION — final override: AMD-only install for all AMD-prefixed notebooks.
+                        # Must come last so it overrides any type-specific install set above.
+                        if is_path_contains_any(notebook_path, ["AMD-"]):
+                            if is_path_contains_any(notebook_path.lower(), ["gemma4"]):
+                                installation = installation_amd_gemma4_content
+                            elif is_path_contains_any(notebook_path.lower(), ["grpo"]):
+                                installation = installation_amd_grpo_content
+                            else:
+                                installation = installation_amd_content
+
                         # Guard: warn if the replacement drops packages
                         old_install_src = notebook_content["cells"][i + 1].get("source", "")
                         if isinstance(old_install_src, list):
@@ -3183,7 +3318,7 @@ def update_notebook_sections(
                         updated = True
                         # TODO: Remove after GRPO numpy bug fixed! 
                         # Error: ValueError: numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88 from PyObject
-                        if is_path_contains_any(notebook_path.lower(), ["grpo"]) and not is_path_contains_any(notebook_path.lower(), ["kaggle"]):
+                        if is_path_contains_any(notebook_path.lower(), ["grpo"]) and not is_path_contains_any(notebook_path.lower(), ["kaggle"]) and not is_path_contains_any(notebook_path, ["AMD-"]):
                             i += 2
                         else:
                             i += 1
@@ -4265,6 +4400,19 @@ def copy_and_update_notebooks(
             new_announcement,
         )
 
+        # AMD notebook: single AMD-only install cell, no Colab/Kaggle branching
+        amd_notebook_name = "AMD-" + notebook_name
+        amd_destination_path = os.path.join(destination_dir, amd_notebook_name)
+        _preserve_outputs(amd_destination_path, template_notebook_path)
+        print(f"Copied '{amd_notebook_name}' to '{destination_dir}'")
+        update_notebook_sections(
+            amd_destination_path,
+            general_announcement,
+            installation_amd_content,
+            installation_amd_content,
+            new_announcement,
+        )
+
     # Move Exceptions back to destination_dir from temp_location
     for entry in DONT_UPDATE_EXCEPTIONS:
         src_path = os.path.join(temp_location, entry)
@@ -4286,7 +4434,7 @@ def missing_files(nb: str | os.PathLike, original_template: str | os.PathLike) -
     files_in_nb = {f for f in os.listdir(nb_abs) if os.path.isfile(os.path.join(nb_abs, f))}
     files_in_original_template = {f for f in os.listdir(original_template_abs) if os.path.isfile(os.path.join(original_template_abs, f))}
 
-    files_in_nb = {f for f in files_in_nb if not (f.startswith("Kaggle") or f.startswith("HuggingFace Course"))}
+    files_in_nb = {f for f in files_in_nb if not (f.startswith("Kaggle") or f.startswith("HuggingFace Course") or f.startswith("AMD-"))}
     files_in_original_template = {f for f in files_in_original_template if not f.startswith("Kaggle")}
 
     only_in_nb = files_in_nb - files_in_original_template
