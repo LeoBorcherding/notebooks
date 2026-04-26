@@ -5,6 +5,8 @@
 
 
 # @title ↙️ Press ▶ to start 🦥 Unsloth Studio Chat for Llama-3.1 8b
+
+# Unsloth Studio
 # Copyright (C) 2024-present the Unsloth AI team. All rights reserved.
 
 # This program is free software: you can redistribute it and/or modify
