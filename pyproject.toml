@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "huggingface-hub>=0.34.0,<1.0",
     "ipykernel>=6.30.1",
     "ipywidgets>=8.1.7",
     "nbconvert>=7.16.6",
+    "nbformat>=5.10.4",
+    "pyspellchecker>=0.9.0",
+    "tqdm>=4.67.0",
 ]
