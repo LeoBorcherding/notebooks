@@ -2500,9 +2500,11 @@ _qat_fbgemm = _qat_fbgemm_map.get(_qat_torch_minor, "{QAT_DEFAULT_FBGEMM_GENAI_V
 
 def _is_amd_grpo_like_path(notebook_path):
     lowered = notebook_path.lower()
+    if is_path_contains_any(lowered, ["2048"]):
+        return False
     return is_path_contains_any(
         lowered,
-        ["grpo", "reinforcement_learning", "reinforcement-learning", "sudoku", "2048", "minesweeper"],
+        ["grpo", "reinforcement_learning", "reinforcement-learning", "sudoku", "minesweeper"],
     )
 
 
@@ -3968,6 +3970,36 @@ def update_notebook_sections(
         if notebook_content["metadata"]["widgets"].get("application/vnd.jupyter.widget-state+json", None) is not None:
             if notebook_content["metadata"]["widgets"]["application/vnd.jupyter.widget-state+json"].get("state") != {}:
                 notebook_content["metadata"]["widgets"]["application/vnd.jupyter.widget-state+json"]["state"] = {}
+                updated = True
+
+        # AMD: remove CUDA-specific secondary install sections (e.g. causal-conv1d, flash-linear-attention)
+        if is_amd_notebook:
+            cells = notebook_content["cells"]
+            indices_to_remove = set()
+            for idx in range(len(cells)):
+                cell = cells[idx]
+                if cell.get("cell_type") != "code":
+                    continue
+                src = _cell_source_text(cell)
+                if not _is_install_like_cell(cells, idx, src):
+                    continue
+                lower = src.lower()
+                if "cuda" not in lower and "nvidia-smi" not in lower and "cu12" not in lower:
+                    continue
+                # Check this cell hasn't already been replaced (i.e., it's not the AMD install cell)
+                if "unsloth[amd]" in src or "_pip(" in src:
+                    continue
+                indices_to_remove.add(idx)
+                # Also remove the preceding markdown heading if it's a simple install-section heading
+                if idx > 0 and cells[idx - 1].get("cell_type") == "markdown":
+                    prev_src = _cell_source_text(cells[idx - 1])
+                    prev_lines = [l for l in prev_src.splitlines() if l.strip()]
+                    if prev_lines and prev_lines[0].startswith("#") and len(prev_lines) <= 3:
+                        indices_to_remove.add(idx - 1)
+            if indices_to_remove:
+                notebook_content["cells"] = [
+                    c for i, c in enumerate(cells) if i not in indices_to_remove
+                ]
                 updated = True
 
         if updated:
