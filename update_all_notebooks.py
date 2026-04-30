@@ -25,6 +25,7 @@ import os
 import pickle
 import platform
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -82,6 +83,11 @@ You will learn how to do [data prep](#Data), how to [train](#Train), how to [run
 general_announcement_content_a100 = general_announcement_content.replace("on a **free** Tesla T4 Google Colab instance!", "on your A100 Google Colab Pro instance!")
 general_announcement_content_l4 = general_announcement_content.replace("on a **free** Tesla T4 Google Colab instance!", "on your L4 Google Colab Pro instance!")
 general_announcement_content_fp8 = general_announcement_content_l4  # backwards compat alias
+general_announcement_content_amd = general_announcement_content.replace(
+    "on a **free** Tesla T4 Google Colab instance!", "on **AMD Dev Cloud**!"
+).replace(
+    'press "*Runtime*" and press "*Run all*"', 'press "*Run*" and press "*Run All*"'
+)
 
 general_announcement_content_hf_course = general_announcement_content.split(announcement_separation)
 general_announcement_content_hf_course = general_announcement_content_hf_course[0] + announcement_separation + '<a href="https://huggingface.co/learn/nlp-course/en/chapter12/6?fw=pt"><img src="https://github.com/unslothai/notebooks/raw/main/assets/hf%20course.png" width="165"></a>' + general_announcement_content_hf_course[1]
@@ -103,6 +109,13 @@ UV_PIN_TRANSFORMERS = PIN_TRANSFORMERS.replace("pip", "uv pip")
 
 PIN_TRL = "!pip install --no-deps trl==0.22.2"
 UV_PIN_TRL = PIN_TRL.replace("pip", "uv pip")
+
+# transformers requires tokenizers in this range. Centralized so Colab and AMD
+# stay in lockstep when the constraint window moves.
+PIN_TOKENIZERS_SPEC = "tokenizers>=0.22.0,<=0.23.0"
+PIN_TOKENIZERS = f'!pip install --no-deps "{PIN_TOKENIZERS_SPEC}"'
+UV_PIN_TOKENIZERS = PIN_TOKENIZERS.replace("pip", "uv pip")
+
 SPACES = " " * 4
 
 XFORMERS_INSTALL = """xformers = 'xformers==' + {'2.10':'0.0.34','2.9':'0.0.33.post1','2.8':'0.0.32.post2'}.get(v, "0.0.34")"""
@@ -350,8 +363,8 @@ if importlib.util.find_spec("torch") is None or "COLAB_" in "".join(os.environ.k
         git+https://github.com/triton-lang/triton.git@0add68262ab0a2e33b84524346cb27cbb2787356#subdirectory=python/triton_kernels
 elif importlib.util.find_spec("unsloth") is None:
     !uv pip install -qqq unsloth
-!uv pip install --upgrade --no-deps transformers==4.56.2 "tokenizers>=0.22.0,<=0.23.0" trl==0.22.2 unsloth unsloth_zoo
-""" + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
+!uv pip install --upgrade --no-deps transformers==4.56.2 "{PIN_TOKENIZERS_SPEC}" trl==0.22.2 unsloth unsloth_zoo
+""".replace("{PIN_TOKENIZERS_SPEC}", PIN_TOKENIZERS_SPEC) + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
 
 # installation_gpt_oss_content = update_or_append_pip_install(
 #     installation_gpt_oss_content,
@@ -501,6 +514,60 @@ else:
 !pip install torchcodec
 import torch; torch._dynamo.config.recompile_limit = 64;""".replace("__XFORMERS_INSTALL__", XFORMERS_INSTALL)
 
+# ---------------------------------------------------------------------------
+# AMD Dev Cloud install template (single canonical %%bash cell shared by every
+# AMD notebook variant). Notebook-specific extra packages (vllm, torchcodec,
+# spellchecker, etc.) and per-variant Python tweaks (e.g. UNSLOTH_VLLM_STANDBY
+# for GRPO, transformers>=5.5.0 for Gemma 4) are emitted as a SECOND cell by
+# _compose_amd_installation so the canonical template can stay literal.
+#
+# IMPORTANT: this is a %%bash cell, so plain `pip install bitsandbytes` is used
+# (no leading `!` -- the bang form is a Jupyter line magic and is not valid
+# bash). The plan author noted this trade-off.
+# ---------------------------------------------------------------------------
+
+installation_amd_cell = r"""%%bash
+python -m pip install -qU uv --root-user-action=ignore
+
+ROCM_TAG="$({ command -v amd-smi >/dev/null 2>&1 && amd-smi version 2>/dev/null | awk -F'ROCm version: ' 'NF>1{split($2,a,"."); print "rocm"a[1]"."a[2]; ok=1; exit} END{exit !ok}'; } || { [ -r /opt/rocm/.info/version ] && awk -F. '{print "rocm"$1"."$2; exit}' /opt/rocm/.info/version; } || { command -v hipconfig >/dev/null 2>&1 && hipconfig --version 2>/dev/null | awk -F': *' '/HIP version/{split($2,a,"."); print "rocm"a[1]"."a[2]; ok=1; exit} END{exit !ok}'; } || { command -v dpkg-query >/dev/null 2>&1 && ver="$(dpkg-query -W -f='${Version}\n' rocm-core 2>/dev/null)" && [ -n "$ver" ] && awk -F'[.-]' '{print "rocm"$1"."$2; exit}' <<<"$ver"; } || { command -v rpm >/dev/null 2>&1 && ver="$(rpm -q --qf '%{VERSION}\n' rocm-core 2>/dev/null)" && [ -n "$ver" ] && awk -F'[.-]' '{print "rocm"$1"."$2; exit}' <<<"$ver"; })"
+[ -n "$ROCM_TAG" ] || { echo "Could not detect ROCm. Install ROCm first or set ROCM_TAG manually."; exit 1; }
+case "$ROCM_TAG" in
+  rocm6.[0-4]|rocm7.[02]) T="$ROCM_TAG" ;;
+  rocm6.*) T="rocm6.4" ;;
+  *) T="rocm7.1" ;;
+esac
+pip install bitsandbytes
+PYTORCH_INDEX_URL="https://download.pytorch.org/whl/${T}"
+uv pip install --system -U --force-reinstall \
+    torch torchvision torchaudio triton-rocm \
+    --index-url "$PYTORCH_INDEX_URL"
+uv pip install --system cut-cross-entropy torchao --no-deps
+uv pip install --system -U --no-deps "unsloth[amd]" "unsloth_zoo[amd]"
+uv pip install --system --no-deps -r "$(python -c 'import pathlib,site;print(next(p for r in [*site.getsitepackages(),site.getusersitepackages()] if (p:=pathlib.Path(r,"studio/backend/requirements/no-torch-runtime.txt")).exists()))')" torchao
+""" + f'uv pip install --system --no-deps -U "{PIN_TOKENIZERS_SPEC}"\n'
+
+
+# Per-variant extras emitted as a SEPARATE Python cell after the canonical
+# bash install cell. Empty for the default flavor; GRPO sets the vLLM standby
+# env var; Gemma 4 pins newer transformers/trl with --no-deps.
+installation_amd_extras_default = ""
+
+installation_amd_extras_grpo = """\
+import os; os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
+"""
+
+installation_amd_extras_gemma4 = """\
+# Gemma 4 requires transformers >= 5.5.0 / trl >= 0.28.0
+!uv pip install --system -qqq --upgrade --no-deps "transformers>=5.5.0" "huggingface_hub>=1.5.0" "datasets==4.3.0" accelerate peft sentencepiece protobuf hf_transfer "trl>=0.28.0" unsloth unsloth_zoo
+"""
+
+# Backwards-compatible aliases. Several places in the script (and external
+# callers) reference these names; keep them pointing at the shared template
+# so any direct usage still produces the canonical install cell.
+installation_amd_content = installation_amd_cell
+installation_amd_grpo_content = installation_amd_cell
+installation_amd_gemma4_content = installation_amd_cell
+
 gemma3n_extra_content = """\
 
 !pip install torchcodec
@@ -532,11 +599,11 @@ if importlib.util.find_spec("torch") is None or "COLAB_" in "".join(os.environ.k
     !uv pip install -qqq --no-deps "torchcodec==0.7.0"
 elif importlib.util.find_spec("unsloth") is None:
     !uv pip install -qqq unsloth
-!uv pip install --upgrade --no-deps "tokenizers>=0.22.0,<=0.23.0" trl==0.22.2 unsloth unsloth_zoo
+!uv pip install --upgrade --no-deps "{PIN_TOKENIZERS_SPEC}" trl==0.22.2 unsloth unsloth_zoo
 !uv pip install transformers==5.2.0
 # causal_conv1d is supported only on torch==2.8.0. If you have newer torch versions, please wait 10 minutes!
 !uv pip install --no-build-isolation flash-linear-attention causal_conv1d==1.6.0
-""" + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
+""".replace("{PIN_TOKENIZERS_SPEC}", PIN_TOKENIZERS_SPEC) + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
 
 installation_qwen3_5_kaggle_content = installation_qwen3_5_content
 
@@ -576,11 +643,11 @@ if importlib.util.find_spec("torch") is None or "COLAB_" in "".join(os.environ.k
     !uv pip install -qqq --no-deps "torchcodec==0.5"
 elif importlib.util.find_spec("unsloth") is None:
     !uv pip install -qqq unsloth
-!uv pip install --upgrade --no-deps transformers==4.56.2 "tokenizers>=0.22.0,<=0.23.0" trl==0.22.2 unsloth unsloth_zoo
+!uv pip install --upgrade --no-deps transformers==4.56.2 "{PIN_TOKENIZERS_SPEC}" trl==0.22.2 unsloth unsloth_zoo
 
 # Mamba is supported only on torch==2.7.1. If you have newer torch versions, please wait 30 minutes!
 !uv pip install --no-build-isolation mamba_ssm==2.2.5 causal_conv1d==1.5.2
-""" + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
+""".replace("{PIN_TOKENIZERS_SPEC}", PIN_TOKENIZERS_SPEC) + '!uv pip install --no-deps --upgrade "torchao>=0.16.0"'
 
 installation_nemotron_nano_kaggle_content = installation_nemotron_nano_content
 
@@ -980,6 +1047,60 @@ DONT_UPDATE_EXCEPTIONS = [
     "OpenEnv_gpt_oss_(20B)_Reinforcement_Learning_2048_Game_BF16.ipynb", # OpenEnv BF16 variant
     "Synthetic_Data_Hackathon.ipynb",                                  # Hackathon-specific notebook
     "Ministral_3_(3B)_Reinforcement_Learning_Sudoku_Game.ipynb",       # Custom Sudoku RL environment
+]
+
+# Notebooks that live ONLY under nb/ (not original_template/) but for which we
+# still want to mint AMD counterparts. They remain in DONT_UPDATE_EXCEPTIONS so
+# normal generation skips them; the AMD generator below explicitly sources them
+# from nb/ regardless. Only the AMD path uses this allowlist -- non-AMD
+# behavior is unchanged.
+AMD_ONLY_NB_SOURCE_ALLOWLIST = [
+    "Falcon_H1-Alpaca.ipynb",
+    "FunctionGemma_(270M)-LMStudio.ipynb",
+    "FunctionGemma_(270M)-Mobile-Actions.ipynb",
+    "FunctionGemma_(270M)-Multi-Turn-Tool-Calling.ipynb",
+    "FunctionGemma_(270M).ipynb",
+    "Gemma3_(270M)_Phone_Deployment.ipynb",
+    "Gemma4_(26B_A4B)-Text.ipynb",
+    "Gemma4_(26B_A4B)-Vision.ipynb",
+    "Gemma4_(31B)-Text.ipynb",
+    "Gemma4_(31B)-Vision.ipynb",
+    "Gemma4_(E2B)-Audio.ipynb",
+    "Gemma4_(E2B)-Text.ipynb",
+    "Gemma4_(E2B)-Vision.ipynb",
+    "Gemma4_(E2B)_GRPO.ipynb",
+    "Gemma4_(E2B)_Reinforcement_Learning_2048_Game.ipynb",
+    "Gemma4_(E2B)_Reinforcement_Learning_Sudoku_Game.ipynb",
+    "Gemma4_(E4B)-Audio.ipynb",
+    "Gemma4_(E4B)-Text.ipynb",
+    "Gemma4_(E4B)-Vision.ipynb",
+    "GLM_Flash_A100(80GB).ipynb",
+    "gpt_oss_(20B)_Reinforcement_Learning_2048_Game_DGX_Spark.ipynb",
+    "gpt_oss_(20B)_Reinforcement_Learning_2048_Game.ipynb",
+    "gpt_oss_(20B)_Reinforcement_Learning_2048_Game_BF16.ipynb",
+    "LFM2.5_(1.2B)-Conversational.ipynb",
+    "LFM2.5_(1.2B)-GRPO.ipynb",
+    "LFM2.5_(1.2B)-Text_Completion.ipynb",
+    "LFM2.5_(1.2B)-Translation.ipynb",
+    "LFM2.5_VL_(1.6B)-Vision.ipynb",
+    "Liquid_LFM2-Conversational.ipynb",
+    "NeMo-Gym-Multi-Environment.ipynb",
+    "NeMo-Gym-Sudoku.ipynb",
+    "OpenEnv_gpt_oss_(20B)_Reinforcement_Learning_2048_Game.ipynb",
+    "OpenEnv_gpt_oss_(20B)_Reinforcement_Learning_2048_Game_BF16.ipynb",
+    "Openenv_wordle_grpo.ipynb",
+    "Qwen_3_5_27B_A100(80GB).ipynb",
+    "Qwen3_(0_6B)-Phone_Deployment.ipynb",
+    "Qwen3_(0.6B)-Reasoning-Conversational-ExecuTorch.ipynb",
+    "Qwen3_5_(0_8B)_Vision.ipynb",
+    "Qwen3_5_(2B)_Vision.ipynb",
+    "Qwen3_5_(4B)_Vision_GRPO.ipynb",
+    "Qwen3_5_(4B)_Vision.ipynb",
+    "Qwen3_5_MoE.ipynb",
+    "Qwen3_6_MoE.ipynb",
+    "Qwen3_MoE.ipynb",
+    "Synthetic_Data_Hackathon.ipynb",
+    "TinyQwen3_MoE.ipynb",
 ]
 
 # Notebooks excluded from automatic README.md listing. You can use a basename,
@@ -1442,6 +1563,60 @@ def _is_install_like_cell(cells, idx, source_text):
     return False
 
 
+def _is_installation_heading(source_text, is_amd_notebook=False):
+    stripped = source_text.strip()
+    if stripped == "### Installation":
+        return True
+    if not is_amd_notebook:
+        return False
+    first_line = stripped.splitlines()[0] if stripped.splitlines() else ""
+    heading = first_line.lstrip("#").strip().lower()
+    return (
+        heading == "installation"
+        or heading.startswith("installation ")
+        or heading.startswith("install unsloth")
+    )
+
+
+def _adjacent_install_like_code_cells(cells, first_code_idx):
+    install_cells = []
+    idx = first_code_idx + 1
+    while idx < len(cells):
+        cell = cells[idx]
+        if cell.get("cell_type") != "code":
+            break
+        source_text = _cell_source_text(cell)
+        if not _is_install_like_cell(cells, idx, source_text):
+            break
+        install_cells.append((idx, source_text))
+        idx += 1
+    return install_cells
+
+
+def _is_residual_non_amd_install_cell(cells, idx, source_text):
+    """Detect source install fragments that must not survive in AMD notebooks."""
+    lower = source_text.lower()
+    if not _is_install_like_cell(cells, idx, source_text):
+        return False
+    if "ROCM_TAG" in source_text or "triton-rocm" in lower:
+        return False
+    return (
+        "COLAB_" in source_text
+        or "unsloth[base]" in source_text
+        or "triton-lang/triton" in source_text
+        or "nvidia-smi" in lower
+        or "cu12" in lower
+    )
+
+
+def _is_stale_amd_announcement(source_text):
+    lower = source_text.lower()
+    return "to run this, press" in lower and any(
+        marker in lower
+        for marker in ("google colab", "open in colab", "tesla t4", "runtime")
+    )
+
+
 def _validate_vllm_install_usage(notebook_path):
     try:
         with open(notebook_path, "r", encoding="utf-8", newline="") as f:
@@ -1496,10 +1671,171 @@ def _assert_vllm_install_usage_or_fast_inference(notebook_files, max_workers=1, 
     raise RuntimeError("vllm install validation failed")
 
 
+def _notebook_code_text(notebook_path):
+    with open(notebook_path, "r", encoding="utf-8", newline="") as f:
+        nb = json.load(f)
+    chunks = []
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "code":
+            continue
+        chunks.append(_cell_source_text(cell))
+    return "\n".join(chunks)
+
+
+def _validate_amd_install_package_parity(amd_notebook_path):
+    basename = os.path.basename(amd_notebook_path)
+    if not basename.startswith("AMD-"):
+        return None
+    base_notebook_path = os.path.join(
+        os.path.dirname(amd_notebook_path),
+        basename[len("AMD-"):],
+    )
+    if not os.path.exists(base_notebook_path):
+        return {
+            "notebook": basename,
+            "missing_base": os.path.basename(base_notebook_path),
+            "missing": [],
+        }
+    try:
+        source_packages = (
+            _extract_install_package_names_from_text(_notebook_code_text(base_notebook_path))
+            - _AMD_INSTALL_PACKAGE_IGNORE
+        )
+        amd_packages = (
+            _extract_install_package_names_from_text(_notebook_code_text(amd_notebook_path))
+            - _AMD_INSTALL_PACKAGE_IGNORE
+        )
+    except (FileNotFoundError, json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        return {
+            "notebook": basename,
+            "error": str(e),
+            "missing": [],
+        }
+    missing = sorted(source_packages - amd_packages)
+    if not missing:
+        return None
+    return {
+        "notebook": basename,
+        "base": os.path.basename(base_notebook_path),
+        "missing": missing,
+    }
+
+
+def _assert_amd_install_package_parity(notebook_files, max_workers=1, executor_type="process"):
+    amd_files = [
+        path for path in notebook_files
+        if os.path.basename(path).startswith("AMD-")
+    ]
+    issues = [
+        issue for issue in _map_with_executor(
+            _validate_amd_install_package_parity,
+            amd_files,
+            max_workers=max_workers,
+            executor_type=executor_type,
+            progress_desc="Validate AMD install parity",
+        )
+        if issue is not None
+    ]
+    if not issues:
+        return
+
+    print("\nERROR: AMD notebooks dropped source install packages:")
+    for issue in issues:
+        if issue.get("missing_base"):
+            print(f"  - {issue['notebook']}: missing base notebook {issue['missing_base']}")
+        elif issue.get("error"):
+            print(f"  - {issue['notebook']}: {issue['error']}")
+        else:
+            print(f"  - {issue['notebook']}: {', '.join(issue['missing'])}")
+    raise RuntimeError("AMD install parity validation failed")
+
+
+def _validate_amd_install_runtime(notebook_path):
+    basename = os.path.basename(notebook_path)
+    if not basename.startswith("AMD-"):
+        return None
+    try:
+        with open(notebook_path, "r", encoding="utf-8", newline="") as f:
+            nb = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        return {"notebook": basename, "cell": None, "markers": [str(e)]}
+
+    cells = nb.get("cells", [])
+    for index, cell in enumerate(cells):
+        source = _cell_source_text(cell)
+        lowered = source.lower()
+
+        if cell.get("cell_type") == "markdown" and _is_stale_amd_announcement(source):
+            return {
+                "notebook": basename,
+                "cell": index,
+                "markers": ["stale Colab run announcement"],
+            }
+
+        if (
+            cell.get("cell_type") == "markdown"
+            and _is_residual_non_amd_install_cell(cells, index, source)
+        ):
+            return {
+                "notebook": basename,
+                "cell": index,
+                "markers": ["stale install markdown"],
+            }
+
+        if cell.get("cell_type") != "code":
+            continue
+        if "pip install" not in lowered and "_pip(" not in source:
+            continue
+        markers = []
+        if "unsloth[base]" in source:
+            markers.append("unsloth[base]")
+        if "COLAB_" in source:
+            markers.append("COLAB_")
+        if "triton-lang/triton" in source:
+            markers.append("triton source install")
+        if "\"torch>=" in source or "'torch>=" in source:
+            markers.append("torch>= install")
+        if _is_install_like_cell(cells, index, source):
+            if "cuda" in lowered:
+                markers.append("CUDA install marker")
+            if "nvidia-smi" in lowered:
+                markers.append("nvidia-smi install marker")
+            if "cu12" in lowered:
+                markers.append("CUDA wheel marker")
+        if markers:
+            return {"notebook": basename, "cell": index, "markers": markers}
+    return None
+
+
+def _assert_amd_install_runtime(notebook_files, max_workers=1, executor_type="process"):
+    amd_files = [
+        path for path in notebook_files
+        if os.path.basename(path).startswith("AMD-")
+    ]
+    issues = [
+        issue for issue in _map_with_executor(
+            _validate_amd_install_runtime,
+            amd_files,
+            max_workers=max_workers,
+            executor_type=executor_type,
+            progress_desc="Validate AMD install runtime",
+        )
+        if issue is not None
+    ]
+    if not issues:
+        return
+
+    print("\nERROR: AMD notebooks contain non-AMD install runtime markers:")
+    for issue in issues:
+        cell = "unknown" if issue["cell"] is None else issue["cell"]
+        print(f"  - {issue['notebook']} cell {cell}: {', '.join(issue['markers'])}")
+    raise RuntimeError("AMD install runtime validation failed")
+
+
 def _get_base_name_from_filename(filename):
     """Extract a base name from the notebook filename for dynamic model naming."""
     name = os.path.splitext(os.path.basename(filename))[0]
-    for prefix in ("Kaggle-", "HuggingFace Course-"):
+    for prefix in ("Kaggle-", "HuggingFace Course-", "AMD-"):
         if name.startswith(prefix):
             name = name[len(prefix):]
             break
@@ -1985,6 +2321,451 @@ def _warn_dropped_packages(notebook_path, old_cell_text, new_cell_text):
             f"{', '.join(sorted(dropped))}. "
             f"Add a dedicated installation_* entry in the script."
         )
+
+_AMD_INSTALL_PACKAGE_IGNORE = frozenset({
+    "unsloth", "unsloth_zoo", "bitsandbytes", "cut_cross_entropy",
+    "triton", "triton_rocm", "xformers", "torch", "torchvision", "torchaudio",
+    "numpy", "pillow", "pil", "torchao", "uv", "base", "amd", "python",
+    # Pinned in installation_amd_cell via PIN_TOKENIZERS_SPEC; suppress here so
+    # variant_extras and source-extracted groups never re-install with a
+    # conflicting (or unpinned) version.
+    "tokenizers",
+})
+
+_AMD_VARIABLE_PACKAGE_FALLBACKS = {
+    "{_vllm}": "vllm",
+    "{_triton}": "triton",
+    "{_numpy}": "numpy",
+    "{_pil}": "pillow",
+    "{xformers}": "xformers",
+}
+
+_AMD_PIP_VALUE_FLAGS = {
+    "--index-url", "--extra-index-url", "--find-links", "-f",
+    "-r", "--requirement", "-c", "--constraint",
+}
+
+_AMD_PRESERVE_SETUP_PREFIXES = (
+    "!git clone",
+    "!rm -rf",
+    "os.remove(",
+    "sys.path.append(",
+    "%env ",
+)
+
+
+def _logical_install_lines(text):
+    """Return shell-like logical lines with backslash continuations joined."""
+    lines = []
+    current = ""
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if current:
+            current += " " + line
+        else:
+            current = line
+        if current.endswith("\\"):
+            current = current[:-1].rstrip()
+            continue
+        if current:
+            lines.append(current)
+        current = ""
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _iter_pip_install_arg_strings(text):
+    """Yield argument strings from !pip/!uv pip install commands."""
+    for line in _logical_install_lines(text):
+        for match in re.finditer(
+            r"(?:^|&&\s*)!?\s*(?:uv\s+)?pip\s+install\s+(.+?)(?=\s+&&\s+!?\s*(?:uv\s+)?pip\s+install\b|$)",
+            line,
+        ):
+            yield match.group(1).strip()
+
+
+def _split_pip_args(arg_string):
+    try:
+        return shlex.split(arg_string, comments=True, posix=True)
+    except ValueError:
+        return arg_string.split()
+
+
+def _package_key_from_install_token(token):
+    token = token.strip().strip(",").strip("\"'")
+    if not token:
+        return None
+    if token in _AMD_VARIABLE_PACKAGE_FALLBACKS:
+        token = _AMD_VARIABLE_PACKAGE_FALLBACKS[token]
+    if token in {"@", "&&", "\\"} or token.startswith(("-", "{", "}", "$")):
+        return None
+    if " @ " in token:
+        token = token.split(" @ ", 1)[0].strip()
+    if token.startswith("git+") or "://" in token:
+        repo = token.rstrip("/").rsplit("/", 1)[-1]
+        repo = repo.split(".git")[0].split("@")[0].split("#")[0]
+        return repo.lower().replace("-", "_") if repo else None
+    token = re.sub(r"\[.*?\]", "", token)
+    match = _RE_PIP_PKG_TOKEN.match(token)
+    if not match:
+        return None
+    return match.group(1).lower().replace("-", "_")
+
+
+def _install_spec_preference(spec):
+    """Rank duplicate package specs so custom/newer pins beat generic ones.
+
+    Tiebreaker: at the same tier, the longer spec string wins so a tighter
+    range (e.g. ``>=0.22.0,<=0.23.0``) beats a loose one (``>=0.22.0``) and
+    a bare name loses to anything with a constraint.
+    """
+    spec = _clean_install_spec(spec)
+    if spec.startswith("git+") or "://" in spec or " @ git+" in spec:
+        return (3, len(spec))
+    match = re.search(r"==\s*([0-9]+(?:\.[0-9]+)*)", spec)
+    if match:
+        return (2, tuple(int(part) for part in match.group(1).split(".")))
+    return (1, len(spec))
+
+
+def _clean_install_spec(token):
+    token = token.strip().strip(",").strip("\"'")
+    return _AMD_VARIABLE_PACKAGE_FALLBACKS.get(token, token)
+
+
+def _extract_install_package_groups(text):
+    """Return package install groups as (flags, specs) tuples."""
+    grouped = {}
+    seen_specs = set()
+
+    def add_tokens(tokens):
+        # Preserve every meaningful flag combination so variant_extras lines
+        # like `--upgrade --no-deps` (force-upgrade with no transitive deps)
+        # don't collapse to just `--no-deps` (which won't override an existing
+        # install).
+        if "--force-reinstall" in tokens:
+            flags = ("--upgrade", "--force-reinstall")
+        else:
+            flags_list = []
+            if "--upgrade" in tokens:
+                flags_list.append("--upgrade")
+            if "--no-build-isolation" in tokens:
+                flags_list.append("--no-build-isolation")
+            if "--no-deps" in tokens:
+                flags_list.append("--no-deps")
+            flags = tuple(flags_list)
+
+        specs = []
+        skip_next = False
+        for token in tokens:
+            if skip_next:
+                skip_next = False
+                continue
+            if token in _AMD_PIP_VALUE_FLAGS:
+                skip_next = True
+                continue
+            if token.startswith("-") or token in {"&&", "@", "\\"}:
+                continue
+            spec = _clean_install_spec(token)
+            key = _package_key_from_install_token(spec)
+            if not key or key in _AMD_INSTALL_PACKAGE_IGNORE:
+                continue
+            if spec in seen_specs:
+                continue
+            seen_specs.add(spec)
+            specs.append(spec)
+        if specs:
+            grouped.setdefault(flags, []).extend(specs)
+
+    for arg_string in _iter_pip_install_arg_strings(text):
+        add_tokens(_split_pip_args(arg_string))
+
+    in_pip_call = False
+    pip_call_lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if in_pip_call:
+            pip_call_lines.append(line)
+            if ")" in line:
+                block = "\n".join(pip_call_lines)
+                tokens = [
+                    match[0] or match[1]
+                    for match in re.findall(r"\"([^\"]+)\"|'([^']+)'", block)
+                ]
+                add_tokens(tokens)
+                in_pip_call = False
+                pip_call_lines = []
+            continue
+        if line.startswith("_pip("):
+            in_pip_call = True
+            pip_call_lines = [line]
+            if ")" in line:
+                block = "\n".join(pip_call_lines)
+                tokens = [
+                    match[0] or match[1]
+                    for match in re.findall(r"\"([^\"]+)\"|'([^']+)'", block)
+                ]
+                add_tokens(tokens)
+                in_pip_call = False
+                pip_call_lines = []
+    return [(flags, specs) for flags, specs in grouped.items()]
+
+
+def _extract_install_package_names_from_text(text):
+    packages = set()
+    for _flags, specs in _extract_install_package_groups(text):
+        for spec in specs:
+            key = _package_key_from_install_token(spec)
+            if key:
+                packages.add(key)
+
+    in_pip_call = False
+    pip_call_lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if in_pip_call:
+            pip_call_lines.append(line)
+            if ")" in line:
+                block = "\n".join(pip_call_lines)
+                for match in re.findall(r"\"([^\"]+)\"|'([^']+)'", block):
+                    key = _package_key_from_install_token(match[0] or match[1])
+                    if key and key not in _AMD_INSTALL_PACKAGE_IGNORE:
+                        packages.add(key)
+                in_pip_call = False
+                pip_call_lines = []
+            continue
+        if line.startswith("_pip("):
+            in_pip_call = True
+            pip_call_lines = [line]
+            if ")" in line:
+                block = "\n".join(pip_call_lines)
+                for match in re.findall(r"\"([^\"]+)\"|'([^']+)'", block):
+                    key = _package_key_from_install_token(match[0] or match[1])
+                    if key and key not in _AMD_INSTALL_PACKAGE_IGNORE:
+                        packages.add(key)
+                in_pip_call = False
+                pip_call_lines = []
+    return packages
+
+
+def _extract_preserved_setup_lines(text):
+    preserved = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith(_AMD_PRESERVE_SETUP_PREFIXES):
+            preserved.append(line)
+        elif line.startswith("os.environ["):
+            preserved.append(line)
+        elif "torch._dynamo.config.recompile_limit" in line:
+            preserved.append(line)
+    return preserved
+
+
+_AMD_SHELL_BARE_RE = re.compile(r'^[A-Za-z0-9_\-./+:@]+$')
+
+
+def _amd_shell_quote_spec(spec):
+    """Quote a pip package spec for use in `!uv pip install` shell magic.
+
+    Specs containing IPython expansion braces ``{var}`` are left bare so the
+    runtime variable substitution still fires. Plain identifiers and bare URL
+    forms are also left unquoted; everything else (version pins, extras, paths
+    with special chars) is wrapped in double quotes for shell safety.
+    """
+    if "{" in spec:
+        return spec
+    if _AMD_SHELL_BARE_RE.match(spec):
+        return spec
+    return f'"{spec}"'
+
+
+def _format_amd_pip_call(flags, specs):
+    parts = ["!uv pip install --system -qqq"]
+    parts.extend(flags)
+    parts.extend(_amd_shell_quote_spec(spec) for spec in specs)
+    return " ".join(parts)
+
+
+def _build_qat_version_vars_block():
+    torchao_mapping = json.dumps(
+        QAT_TORCHAO_BY_TORCH_MINOR, sort_keys=True, separators=(",", ":")
+    )
+    fbgemm_mapping = json.dumps(
+        QAT_FBGEMM_GENAI_BY_TORCH_MINOR, sort_keys=True, separators=(",", ":")
+    )
+    return f"""import re
+try:
+    import torch; _qat_torch_minor = re.match(r"[0-9]{{1,}}\\.[0-9]{{1,}}", str(torch.__version__)).group(0)
+except Exception:
+    _qat_torch_minor = ""
+_qat_torchao_map = {torchao_mapping}
+_qat_torchao = _qat_torchao_map.get(_qat_torch_minor, "{QAT_DEFAULT_TORCHAO_VERSION}")
+_qat_fbgemm_map = {fbgemm_mapping}
+_qat_fbgemm = _qat_fbgemm_map.get(_qat_torch_minor, "{QAT_DEFAULT_FBGEMM_GENAI_VERSION}")"""
+
+
+def _is_amd_grpo_like_path(notebook_path):
+    lowered = notebook_path.lower()
+    return is_path_contains_any(
+        lowered,
+        ["grpo", "reinforcement_learning", "reinforcement-learning", "sudoku", "2048", "minesweeper"],
+    )
+
+
+_RE_VARIANT_HEADER_PIP = re.compile(r"^\s*!?\s*(uv\s+)?pip\s+install\b")
+
+
+def _extract_variant_header(variant_extras):
+    """Return non-pip lines (comments, env-vars) from a variant_extras block.
+
+    pip install lines from variant_extras get parsed and merged through the
+    same dedup pipeline as source-extracted groups. Everything else (the
+    explanatory comment, any ``os.environ`` setup, ``import torch; ...``)
+    is preserved verbatim so the extras cell still reads as authored.
+    """
+    if not variant_extras:
+        return []
+    out = []
+    for raw_line in variant_extras.splitlines():
+        if not raw_line.strip():
+            continue
+        if _RE_VARIANT_HEADER_PIP.match(raw_line):
+            continue
+        out.append(raw_line.rstrip())
+    return out
+
+
+def _compose_amd_installation(notebook_path, source_install_texts):
+    """Build the AMD install cell(s) while preserving notebook-specific packages.
+
+    Returns ``(install_cell_text, extras_cell_text_or_None)``. The first item
+    is the canonical %%bash install cell shared across all AMD notebooks. The
+    second item, when not None, is a follow-up Python cell containing
+    per-variant tweaks (e.g. UNSLOTH_VLLM_STANDBY for GRPO, transformers>=5.5
+    for Gemma 4) plus any notebook-specific extra packages or setup lines
+    extracted from the source notebook's install cell(s).
+
+    Composition order:
+      1. ``variant_extras`` pip lines seed ``merged_groups`` first so variant
+         pins always win over source-extracted ones.
+      2. Source notebook install groups merge in next; specs already present
+         (by package key) are dropped unless strictly preferred by
+         ``_install_spec_preference``.
+      3. Non-pip lines from variant_extras (comments, env-vars) are emitted
+         verbatim above the merged pip lines.
+    """
+    lowered = notebook_path.lower()
+    source_install_blob = "\n".join(text for text in source_install_texts if text).lower()
+    if is_path_contains_any(lowered, ["gemma4"]):
+        variant_extras = installation_amd_extras_gemma4
+    elif _is_amd_grpo_like_path(notebook_path) and "vllm" in source_install_blob:
+        variant_extras = installation_amd_extras_grpo
+    else:
+        variant_extras = installation_amd_extras_default
+
+    merged_groups = {}
+    spec_locations = {}
+    variant_locked_keys = set()
+
+    def _merge_spec(flags, spec, *, lock=False):
+        key = _package_key_from_install_token(spec)
+        if not key:
+            return
+        # Variant-seeded specs are sticky: source-extracted overrides never
+        # replace them, even if the source spec parses to a higher tier under
+        # _install_spec_preference. Hand-curated AMD configs outrank Colab
+        # pin drift.
+        if key in variant_locked_keys and not lock:
+            return
+        existing = spec_locations.get(key)
+        if existing is not None:
+            old_flags, old_spec = existing
+            if _install_spec_preference(old_spec) >= _install_spec_preference(spec):
+                return
+            old_group = merged_groups.get(old_flags, [])
+            if old_spec in old_group:
+                old_group.remove(old_spec)
+        target = merged_groups.setdefault(flags, [])
+        target.append(spec)
+        spec_locations[key] = (flags, spec)
+        if lock:
+            variant_locked_keys.add(key)
+
+    # Seed variant_extras pip groups FIRST so variant pins beat source overrides.
+    if variant_extras:
+        for flags, specs in _extract_install_package_groups(variant_extras):
+            for spec in specs:
+                _merge_spec(flags, spec, lock=True)
+
+    setup_lines = []
+    seen_setup = set()
+    for text in source_install_texts:
+        if not text:
+            continue
+        for line in _extract_preserved_setup_lines(text):
+            if line.startswith('os.environ["UNSLOTH_VLLM_STANDBY"]') and _is_amd_grpo_like_path(notebook_path):
+                # Already covered by the GRPO variant_extras block.
+                continue
+            if line not in seen_setup:
+                seen_setup.add(line)
+                setup_lines.append(line)
+        for flags, specs in _extract_install_package_groups(text):
+            for spec in specs:
+                _merge_spec(flags, spec)
+
+    extra_blocks = []
+    if any("{_qat_" in spec for specs in merged_groups.values() for spec in specs):
+        extra_blocks.append(_build_qat_version_vars_block())
+    if setup_lines:
+        extra_blocks.append("\n".join(setup_lines))
+    for flags, specs in merged_groups.items():
+        if specs:
+            extra_blocks.append(_format_amd_pip_call(flags, specs))
+
+    install_cell = installation_amd_cell
+
+    # variant_extras pip lines were folded into merged_groups; only the
+    # non-pip header (comments + os.environ) survives as literal text.
+    variant_header = _extract_variant_header(variant_extras)
+
+    if not variant_header and not extra_blocks:
+        return install_cell, None
+
+    extras_parts = []
+    if variant_header:
+        extras_parts.append("\n".join(variant_header))
+    if extra_blocks:
+        extras_parts.append("\n".join(extra_blocks))
+    extras_cell = "\n\n".join(extras_parts) + "\n"
+    return install_cell, extras_cell
+
+
+def _append_missing_amd_install_groups(new_install_text, source_install_text):
+    """Append install groups from a follow-up source install cell if absent."""
+    existing = _extract_install_package_names_from_text(new_install_text)
+    extra_blocks = []
+    for flags, specs in _extract_install_package_groups(source_install_text):
+        missing_specs = []
+        for spec in specs:
+            key = _package_key_from_install_token(spec)
+            if not key or key in _AMD_INSTALL_PACKAGE_IGNORE or key in existing:
+                continue
+            existing.add(key)
+            missing_specs.append(spec)
+        if missing_specs:
+            extra_blocks.append(_format_amd_pip_call(flags, missing_specs))
+    if not extra_blocks:
+        return new_install_text
+    return (
+        new_install_text.rstrip()
+        + "\n\n"
+        + "\n".join(extra_blocks)
+        + "\n"
+    )
+
 
 def _preserve_transformers_v5_pin(old_cell_text, new_cell_text):
     """Preserve transformers 5.x pin from the old cell, never downgrading the version."""
@@ -2913,6 +3694,7 @@ def update_notebook_sections(
             notebook_content = json.load(f)
 
         updated = False
+        is_amd_notebook = is_path_contains_any(notebook_path, ["AMD-"])
 
         first_markdown_index = -1
         news_markdown_index = -1
@@ -2930,7 +3712,9 @@ def update_notebook_sections(
 
         # Select announcement based on notebook type and GPU
         gpu_type = notebook_content.get("metadata", {}).get("colab", {}).get("gpuType", "T4")
-        if f"{hf_course_name}-" in notebook_path:
+        if is_amd_notebook:
+            general_announcement = general_announcement_content_amd
+        elif f"{hf_course_name}-" in notebook_path:
             full_model_name = os.path.basename(notebook_path).replace(".ipynb", "")
             full_model_name = full_model_name.split("-")
             full_model_name = " ".join(full_model_name[1:]).replace("_", " ")
@@ -2954,7 +3738,13 @@ def update_notebook_sections(
 
         # Update the general announcement section
         if first_markdown_index != -1:
-            if news_markdown_index == first_markdown_index:
+            first_markdown_source = "".join(
+                notebook_content["cells"][first_markdown_index]["source"]
+            ).strip()
+            if is_amd_notebook and _is_stale_amd_announcement(first_markdown_source):
+                notebook_content["cells"][first_markdown_index]["source"] = _source_lines(general_announcement)
+                updated = True
+            elif news_markdown_index == first_markdown_index:
                 # "# News" is the first markdown, insert above it
                 if first_markdown_index >= 0:
                     notebook_content["cells"].insert(
@@ -2977,7 +3767,26 @@ def update_notebook_sections(
                 notebook_content["cells"][first_markdown_index]["source"] = _source_lines(general_announcement)
                 updated = True
 
-        i = 0 if news_markdown_index == -1 else news_markdown_index
+        if is_amd_notebook:
+            stale_announcement_indices = []
+            for cell_index, cell in enumerate(notebook_content["cells"]):
+                if cell_index == first_markdown_index or cell.get("cell_type") != "markdown":
+                    continue
+                source_text = _cell_source_text(cell)
+                if _is_stale_amd_announcement(source_text):
+                    stale_announcement_indices.append(cell_index)
+            if stale_announcement_indices:
+                removed_before_news = sum(
+                    1 for cell_index in stale_announcement_indices
+                    if news_markdown_index != -1 and cell_index < news_markdown_index
+                )
+                for cell_index in reversed(stale_announcement_indices):
+                    del notebook_content["cells"][cell_index]
+                if news_markdown_index != -1:
+                    news_markdown_index -= removed_before_news
+                updated = True
+
+        i = 0 if (is_amd_notebook or news_markdown_index == -1) else news_markdown_index
 
         is_gguf = False
         is_ollama = False
@@ -2985,6 +3794,7 @@ def update_notebook_sections(
         is_llama = is_path_contains_any(notebook_path.lower(), ["llama"])
         is_vision = is_path_contains_any(notebook_path.lower(), ["vision"])
         is_qwen3 = is_path_contains_any(notebook_path.lower(), ["qwen3"])
+        install_section_updated = False
 
         while i < len(notebook_content["cells"]):
             cell = notebook_content["cells"][i]
@@ -3006,11 +3816,31 @@ def update_notebook_sections(
                         notebook_content["cells"][i + 1]["source"] = _source_lines(announcement)
                         updated = True
                         i += 1
-                elif source_str == "### Installation":
+                elif _is_installation_heading(source_str, is_amd_notebook):
                     if (
                         i + 1 < len(notebook_content["cells"])
                         and notebook_content["cells"][i + 1]["cell_type"] == "code"
                     ):
+                        install_section_updated = True
+                        source_install_texts = []
+                        old_install_src = _cell_source_text(notebook_content["cells"][i + 1])
+                        source_install_texts.append(old_install_src)
+                        amd_followup_install_cells = []
+                        if is_amd_notebook:
+                            amd_followup_install_cells = _adjacent_install_like_code_cells(
+                                notebook_content["cells"], i + 1
+                            )
+                            source_install_texts.extend(
+                                source_text for _idx, source_text in amd_followup_install_cells
+                            )
+                        elif (
+                            i + 2 < len(notebook_content["cells"])
+                            and notebook_content["cells"][i + 2]["cell_type"] == "code"
+                        ):
+                            next_install_src = _cell_source_text(notebook_content["cells"][i + 2])
+                            if _is_install_like_cell(notebook_content["cells"], i + 2, next_install_src):
+                                source_install_texts.append(next_install_src)
+
                         if is_path_contains_any(notebook_path, ["kaggle"]):
                             installation = installation_steps_kaggle
                         else:
@@ -3021,7 +3851,10 @@ def update_notebook_sections(
                             if is_path_contains_any(notebook_path.lower(), ["kaggle"]):
                                 installation = installation_grpo_kaggle_content
                                 # Kaggle will delete the second cell instead -> Need to check
-                                del notebook_content["cells"][i + 2]
+                                if i + 2 < len(notebook_content["cells"]):
+                                    del notebook_content["cells"][i + 2]
+                            elif is_amd_notebook:
+                                installation = installation_grpo_content
                             else:
                                 installation = installation_grpo_content
                                 # TODO: Remove after GRPO numpy bug fixed!
@@ -3029,16 +3862,20 @@ def update_notebook_sections(
                                 notebook_content["cells"][i + 2]["source"] = installation_extra_grpo_content
 
                         # META INSTALLATION
-                        elif is_path_contains_any(notebook_path.lower(), ["Meta"]): 
+                        elif is_path_contains_any(notebook_path.lower(), ["Meta"]):
                             if is_path_contains_any(notebook_path.lower(), ["kaggle"]):
                                 installation = installation_grpo_synthetic_data_content
                                 # Kaggle will delete the second cell instead -> Need to check
-                                del notebook_content["cells"][i + 2]
+                                if i + 2 < len(notebook_content["cells"]):
+                                    del notebook_content["cells"][i + 2]
+                            elif is_amd_notebook:
+                                installation = installation_synthetic_data_content
                             else:
                                 installation = installation_synthetic_data_content
                                 # TODO: Remove after GRPO numpy bug fixed!
                                 # Error : ValueError: numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88 from PyObject
-                                notebook_content["cells"][i + 2]["source"] = installation_extra_grpo_content
+                                if i + 2 < len(notebook_content["cells"]):
+                                    notebook_content["cells"][i + 2]["source"] = installation_extra_grpo_content
                         
                         # ORPHEUS INSTALLATION
                         if is_path_contains_any(notebook_path.lower(), ["orpheus"]):
@@ -3189,6 +4026,25 @@ def update_notebook_sections(
                             else:
                                 installation = installation_phone_content
 
+                        # AMD INSTALLATION: final override for all AMD-prefixed notebooks.
+                        # Must come last, but compose notebook-specific deps from the selected source install.
+                        amd_extras_cell_text = None
+                        if is_amd_notebook:
+                            selected_install_text = "".join(installation) if isinstance(installation, list) else installation
+                            source_install_texts.insert(0, selected_install_text)
+                            if (
+                                is_path_contains_any(notebook_path.lower(), ["grpo"])
+                                and not is_path_contains_any(notebook_path.lower(), ["gpt_oss", "gpt-oss"])
+                            ):
+                                source_install_texts.append(installation_extra_grpo_content)
+                            if is_path_contains_any(notebook_path.lower(), ["qwen3_6"]):
+                                source_install_texts.append(
+                                    "!uv pip install --no-build-isolation flash-linear-attention causal_conv1d==1.6.0"
+                                )
+                            installation, amd_extras_cell_text = _compose_amd_installation(
+                                notebook_path, source_install_texts
+                            )
+
                         # Guard: warn if the replacement drops packages
                         old_install_src = notebook_content["cells"][i + 1].get("source", "")
                         if isinstance(old_install_src, list):
@@ -3199,18 +4055,125 @@ def update_notebook_sections(
                             new_install_text = installation
                         if not is_path_contains_any(notebook_path.lower(), ["qwen3_5"]):
                             new_install_text = _preserve_transformers_v5_pin(old_install_src, new_install_text)
-                        _warn_dropped_packages(notebook_path, old_install_src, new_install_text)
+                        if not is_amd_notebook:
+                            _warn_dropped_packages(notebook_path, old_install_src, new_install_text)
 
                         notebook_content["cells"][i + 1]["source"] = new_install_text
+                        if is_amd_notebook:
+                            for cell_index, _source_text in reversed(amd_followup_install_cells):
+                                del notebook_content["cells"][cell_index]
+                        # Insert/replace the AMD extras cell directly after the
+                        # canonical install cell so per-variant tweaks and
+                        # notebook-specific extras run after the bash setup.
+                        if is_amd_notebook and amd_extras_cell_text and amd_extras_cell_text.strip():
+                            extras_cell = {
+                                "cell_type": "code",
+                                "metadata": {},
+                                "source": amd_extras_cell_text,
+                                "execution_count": None,
+                                "outputs": [],
+                            }
+                            notebook_content["cells"].insert(i + 2, extras_cell)
                         updated = True
-                        # TODO: Remove after GRPO numpy bug fixed! 
+                        # TODO: Remove after GRPO numpy bug fixed!
                         # Error: ValueError: numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88 from PyObject
-                        if is_path_contains_any(notebook_path.lower(), ["grpo"]) and not is_path_contains_any(notebook_path.lower(), ["kaggle"]):
+                        if is_path_contains_any(notebook_path.lower(), ["grpo"]) and not is_path_contains_any(notebook_path.lower(), ["kaggle"]) and not is_path_contains_any(notebook_path, ["AMD-"]):
                             i += 2
                         else:
                             i += 1
 
             i += 1
+
+        if is_amd_notebook and is_path_contains_any(notebook_path.lower(), ["qwen3_6"]):
+            remove_indices = set()
+            for cell_index, cell in enumerate(notebook_content["cells"]):
+                source_text = _cell_source_text(cell)
+                if (
+                    cell.get("cell_type") == "code"
+                    and "CUDA-enabled PyTorch is required" in source_text
+                    and "causal_conv1d_url" in source_text
+                ):
+                    remove_indices.add(cell_index)
+                    if (
+                        cell_index > 0
+                        and notebook_content["cells"][cell_index - 1].get("cell_type") == "markdown"
+                        and "flash-linear-attention" in _cell_source_text(notebook_content["cells"][cell_index - 1]).lower()
+                    ):
+                        remove_indices.add(cell_index - 1)
+            if remove_indices:
+                for cell_index in sorted(remove_indices, reverse=True):
+                    del notebook_content["cells"][cell_index]
+                updated = True
+
+        if is_amd_notebook and not install_section_updated:
+            notebook_code = "\n".join(
+                _cell_source_text(cell)
+                for cell in notebook_content["cells"]
+                if cell.get("cell_type") == "code"
+            )
+            if "from unsloth import" in notebook_code or "import unsloth" in notebook_code:
+                source_install_texts = [
+                    installation_synthetic_data_content
+                    if is_path_contains_any(notebook_path.lower(), ["synthetic_data"])
+                    else installation_content
+                ]
+                installation, amd_extras_cell_text = _compose_amd_installation(
+                    notebook_path, source_install_texts
+                )
+                install_cells = [
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": ["### Installation\n"],
+                    },
+                    {
+                        "cell_type": "code",
+                        "metadata": {},
+                        "source": installation,
+                        "execution_count": None,
+                        "outputs": [],
+                    },
+                ]
+                if amd_extras_cell_text and amd_extras_cell_text.strip():
+                    install_cells.append(
+                        {
+                            "cell_type": "code",
+                            "metadata": {},
+                            "source": amd_extras_cell_text,
+                            "execution_count": None,
+                            "outputs": [],
+                        }
+                    )
+                insert_at = first_markdown_index + 1 if first_markdown_index != -1 else 0
+                notebook_content["cells"][insert_at:insert_at] = install_cells
+                updated = True
+
+        if is_amd_notebook:
+            remove_indices = set()
+            for cell_index, cell in enumerate(notebook_content["cells"]):
+                cell_type = cell.get("cell_type")
+                if cell_type not in ("code", "markdown"):
+                    continue
+                source_text = _cell_source_text(cell)
+                if not _is_residual_non_amd_install_cell(
+                    notebook_content["cells"], cell_index, source_text
+                ):
+                    continue
+                remove_indices.add(cell_index)
+                if (
+                    cell_type == "code"
+                    and cell_index > 0
+                    and notebook_content["cells"][cell_index - 1].get("cell_type") == "markdown"
+                    and _is_installation_heading(
+                        _cell_source_text(notebook_content["cells"][cell_index - 1]),
+                        is_amd_notebook=True,
+                    )
+                ):
+                    remove_indices.add(cell_index - 1)
+            if remove_indices:
+                for cell_index in sorted(remove_indices, reverse=True):
+                    del notebook_content["cells"][cell_index]
+                updated = True
 
         # Add text to the last cell
         if notebook_content["cells"]:
@@ -3585,16 +4548,20 @@ def _map_with_executor(func, items, max_workers=1, executor_type="process", prog
         return list(_progress_iter(mapped, total=len(items), desc=progress_desc))
 
 
-def main(max_workers=1, executor_type="process"):
+def main(max_workers=1, executor_type="process", notebook_files=None):
     notebook_directory = "nb"
     notebook_pattern = "*.ipynb"
 
-    notebook_files = glob(os.path.join(notebook_directory, notebook_pattern))
-    print(f"Found {len(notebook_files)} notebooks")
-    # filter out the DONT_UPDATE_EXCEPTIONS
-    notebook_files = [x for x in notebook_files if os.path.basename(x) not in DONT_UPDATE_EXCEPTIONS]
-    print(f"Filtered out {len(DONT_UPDATE_EXCEPTIONS)} notebooks")
-    print(f"Remaining {len(notebook_files)} notebooks")
+    if notebook_files is None:
+        notebook_files = glob(os.path.join(notebook_directory, notebook_pattern))
+        print(f"Found {len(notebook_files)} notebooks")
+        # filter out the DONT_UPDATE_EXCEPTIONS
+        notebook_files = [x for x in notebook_files if os.path.basename(x) not in DONT_UPDATE_EXCEPTIONS]
+        print(f"Filtered out {len(DONT_UPDATE_EXCEPTIONS)} notebooks")
+        print(f"Remaining {len(notebook_files)} notebooks")
+    else:
+        notebook_files = list(notebook_files)
+        print(f"Processing {len(notebook_files)} notebooks (caller-supplied)")
 
     if not notebook_files:
         print(
@@ -4301,6 +5268,72 @@ def copy_and_update_notebooks(
     # finally remove the temp_location
     _rmtree_robust(temp_location)
 
+
+def copy_and_update_amd_notebooks(
+    template_dir,
+    destination_dir,
+    general_announcement,
+    installation,
+    installation_kaggle,
+    new_announcement,
+):
+    """Generate only AMD notebooks from template_dir into destination_dir."""
+    os.makedirs(destination_dir, exist_ok=True)
+    source_notebooks = {
+        os.path.basename(path): path
+        for path in glob(os.path.join(template_dir, "*.ipynb"))
+    }
+    amd_base_names = {
+        os.path.basename(path)[len("AMD-"):]
+        for path in glob(os.path.join(destination_dir, "AMD-*.ipynb"))
+    }
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", os.path.join(destination_dir, "AMD-*.ipynb")],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        tracked_names = {
+            os.path.basename(path)[len("AMD-"):]
+            for path in tracked.stdout.splitlines()
+            if os.path.basename(path).startswith("AMD-")
+        }
+        if tracked_names:
+            amd_base_names = tracked_names
+    except Exception:
+        pass
+    # AMD-only carve-out: notebooks in DONT_UPDATE_EXCEPTIONS that still need an
+    # AMD counterpart minted from their nb/ copy (no original_template version).
+    amd_base_names = set(amd_base_names) | set(AMD_ONLY_NB_SOURCE_ALLOWLIST)
+    for path in glob(os.path.join(destination_dir, "*.ipynb")):
+        basename = os.path.basename(path)
+        if basename.startswith(("AMD-", "Kaggle-", f"{hf_course_name}-")):
+            continue
+        if basename not in amd_base_names:
+            continue
+        source_notebooks.setdefault(basename, path)
+
+    amd_paths = []
+    for notebook_name, template_notebook_path in sorted(source_notebooks.items()):
+        amd_notebook_name = "AMD-" + notebook_name
+        amd_destination_path = os.path.join(destination_dir, amd_notebook_name)
+        _cache_original_outputs(amd_destination_path)
+        shutil.copyfile(template_notebook_path, amd_destination_path)
+        _set_file_permissions(amd_destination_path)
+        _cache_notebook_format(amd_destination_path)
+        update_notebook_sections(
+            amd_destination_path,
+            general_announcement,
+            installation,
+            installation_kaggle,
+            new_announcement,
+        )
+        amd_paths.append(amd_destination_path)
+        print(f"Copied '{amd_notebook_name}' to '{destination_dir}'")
+    return amd_paths
+
+
 def missing_files(nb: str | os.PathLike, original_template: str | os.PathLike) -> list[str]:
     nb_abs = os.path.abspath(nb)
     original_template_abs = os.path.abspath(original_template)
@@ -4308,7 +5341,7 @@ def missing_files(nb: str | os.PathLike, original_template: str | os.PathLike) -
     files_in_nb = {f for f in os.listdir(nb_abs) if os.path.isfile(os.path.join(nb_abs, f))}
     files_in_original_template = {f for f in os.listdir(original_template_abs) if os.path.isfile(os.path.join(original_template_abs, f))}
 
-    files_in_nb = {f for f in files_in_nb if not (f.startswith("Kaggle") or f.startswith("HuggingFace Course"))}
+    files_in_nb = {f for f in files_in_nb if not (f.startswith("Kaggle") or f.startswith("HuggingFace Course") or f.startswith("AMD-"))}
     files_in_original_template = {f for f in files_in_original_template if not f.startswith("Kaggle")}
 
     only_in_nb = files_in_nb - files_in_original_template
@@ -4367,16 +5400,24 @@ def convert_folder(
     output_folder: str,
     max_workers: int = 1,
     executor_type: str = "process",
+    include_prefix: str = None,
+    clean_output_folder: bool = True,
 ):
-    if os.path.exists(output_folder):
+    if clean_output_folder and os.path.exists(output_folder):
         _rmtree_robust(output_folder)
 
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+    elif include_prefix:
+        for filename in os.listdir(output_folder):
+            if filename.startswith(include_prefix) and filename.endswith(".py"):
+                os.remove(os.path.join(output_folder, filename))
 
     tasks = []
     for filename in os.listdir(input_folder):
         if filename.endswith('.ipynb'):
+            if include_prefix and not filename.startswith(include_prefix):
+                continue
             notebook_path = os.path.join(input_folder, filename)
             script_filename = filename.replace('.ipynb', '.py')
             output_path = os.path.join(output_folder, script_filename)
@@ -4389,6 +5430,16 @@ def convert_folder(
         executor_type=executor_type,
         progress_desc="Notebook -> script",
     )
+
+
+def _assert_amd_script_count(notebook_folder="nb", script_folder="python_scripts"):
+    amd_notebook_count = len(glob(os.path.join(notebook_folder, "AMD-*.ipynb")))
+    amd_script_count = len(glob(os.path.join(script_folder, "AMD-*.py")))
+    if amd_notebook_count != amd_script_count:
+        raise RuntimeError(
+            f"AMD script generation mismatch: {amd_script_count} scripts for "
+            f"{amd_notebook_count} notebooks"
+        )
 
 
 def _ensure_memory_stats_hidden(nb_path):
@@ -4577,6 +5628,11 @@ if __name__ == "__main__":
         help="Only update the News section in all notebooks. Skips installation, README, spelling, and all other updates.",
     )
     parser.add_argument(
+        "--amd",
+        action="store_true",
+        help="Only regenerate AMD notebooks and AMD python scripts.",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=0,
@@ -4643,6 +5699,98 @@ if __name__ == "__main__":
     for _nb_path in glob(os.path.join("nb", "*.ipynb")):
         _cache_notebook_format(_nb_path)
 
+    if args.amd:
+        amd_paths = copy_and_update_amd_notebooks(
+            "original_template",
+            "nb",
+            general_announcement_content,
+            installation_content,
+            installation_kaggle_content,
+            new_announcement,
+        )
+        main(max_workers=args.workers, executor_type=args.executor, notebook_files=amd_paths)
+        amd_paths = glob(os.path.join("nb", "AMD-*.ipynb"))
+        _assert_vllm_install_usage_or_fast_inference(
+            amd_paths,
+            max_workers=args.workers,
+            executor_type=args.executor,
+        )
+        _assert_amd_install_package_parity(
+            amd_paths,
+            max_workers=args.workers,
+            executor_type=args.executor,
+        )
+        _assert_amd_install_runtime(
+            amd_paths,
+            max_workers=args.workers,
+            executor_type=args.executor,
+        )
+
+        _map_with_executor(
+            _apply_global_fixes,
+            amd_paths,
+            max_workers=args.workers,
+            executor_type=args.executor,
+            progress_desc="Global notebook fixes",
+        )
+
+        for nb_path in _progress_iter(amd_paths, total=len(amd_paths), desc="Hide memory stats"):
+            _ensure_memory_stats_hidden(nb_path)
+
+        for nb_path in _progress_iter(amd_paths, total=len(amd_paths), desc="Normalize LGPL"):
+            _normalize_lgpl_blank_line(nb_path)
+
+        for nb_path in _progress_iter(amd_paths, total=len(amd_paths), desc="Normalize sources"):
+            try:
+                with open(nb_path, "r", encoding="utf-8", newline="") as f:
+                    nb_data = json.load(f)
+                changed = False
+                for cell in nb_data.get("cells", []):
+                    source = cell.get("source", [])
+                    if isinstance(source, list):
+                        while source and source[-1] == "":
+                            source.pop()
+                            changed = True
+                        if source and source[-1].endswith("\n"):
+                            source[-1] = source[-1][:-1]
+                            changed = True
+                if changed:
+                    _write_notebook(nb_path, nb_data)
+            except Exception:
+                pass
+
+        for nb_path in _progress_iter(amd_paths, total=len(amd_paths), desc="Restore outputs"):
+            _restore_original_outputs(nb_path)
+
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
+        from fix_html_tags import fix_outputs as _fix_html_outputs
+        from fix_html_tags import fix_comments as _fix_html_comments
+
+        for nb_path in _progress_iter(amd_paths, total=len(amd_paths), desc="Fix HTML tags"):
+            try:
+                with open(nb_path, "r", encoding="utf-8", newline="") as f:
+                    nb_data = json.load(f)
+                output_fixes = _fix_html_outputs(nb_data)
+                comment_fixes = _fix_html_comments(nb_data)
+                if output_fixes + comment_fixes > 0:
+                    _write_notebook(nb_path, nb_data)
+            except Exception:
+                pass
+
+        if not args.disable_convert_to_script:
+            convert_folder(
+                "nb",
+                "python_scripts",
+                max_workers=args.workers,
+                executor_type=args.executor,
+                include_prefix="AMD-",
+                clean_output_folder=False,
+            )
+            _assert_amd_script_count()
+
+        _summarize_git_diff()
+        exit(0)
+
     copy_and_update_notebooks(
         "original_template",
         "nb",
@@ -4654,6 +5802,16 @@ if __name__ == "__main__":
     main(max_workers=args.workers, executor_type=args.executor)
     all_nb_paths = glob(os.path.join("nb", "*.ipynb"))
     _assert_vllm_install_usage_or_fast_inference(
+        all_nb_paths,
+        max_workers=args.workers,
+        executor_type=args.executor,
+    )
+    _assert_amd_install_package_parity(
+        all_nb_paths,
+        max_workers=args.workers,
+        executor_type=args.executor,
+    )
+    _assert_amd_install_runtime(
         all_nb_paths,
         max_workers=args.workers,
         executor_type=args.executor,
