@@ -2740,7 +2740,34 @@ def _compose_amd_installation(notebook_path, source_install_texts):
     if extra_blocks:
         extras_parts.append("\n".join(extra_blocks))
     extras_cell = "\n\n".join(extras_parts) + "\n"
+    extras_cell = _prepend_missing_stdlib_imports(extras_cell)
     return install_cell, extras_cell
+
+
+_AMD_STDLIB_AUTOIMPORTS = ("os", "sys", "subprocess", "shutil", "pathlib", "json", "re")
+
+
+def _prepend_missing_stdlib_imports(cell_text):
+    """Ensure stdlib modules used in the extras cell are imported in it.
+
+    The preceding install cell is ``%%bash`` and carries no Python state, so
+    any ``os.environ``, ``os.remove``, ``sys.path.append``, etc. extracted
+    from source notebooks would NameError without an explicit import in the
+    same cell. We scan the composed text for ``module.`` usage and prepend
+    ``import module`` for any that lack it.
+    """
+    needed = []
+    for mod in _AMD_STDLIB_AUTOIMPORTS:
+        if not re.search(rf"\b{mod}\.", cell_text):
+            continue
+        if re.search(rf"^\s*import\s+{mod}\b", cell_text, re.MULTILINE):
+            continue
+        if re.search(rf"^\s*import\s+[^\n#]*\b{mod}\b", cell_text, re.MULTILINE):
+            continue
+        needed.append(mod)
+    if not needed:
+        return cell_text
+    return "\n".join(f"import {mod}" for mod in needed) + "\n" + cell_text
 
 
 def _append_missing_amd_install_groups(new_install_text, source_install_text):
